@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Clock, Activity, FileText, XCircle, AlertTriangle, Eye, X } from 'lucide-react';
 
 // --- CONFIGURATION ---
-const N8N_CANCEL_WEBHOOK = 'https://your-n8n-instance.com/webhook/user-cancel'; 
+const N8N_CANCEL_WEBHOOK = import.meta.env.N8N_CANCEL_APPOINTMENT; 
 
 const AppointmentsList = () => {
   const navigate = useNavigate();

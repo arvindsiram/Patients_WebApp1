@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { MessageSquare } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext'; // 1. Import Auth Hook
 
 interface VoiceflowChatProps {
   onChatComplete: () => void;
@@ -13,9 +14,13 @@ declare global {
 
 export function VoiceflowChat({ onChatComplete }: VoiceflowChatProps) {
   const scriptLoaded = useRef(false);
+  const { user } = useAuth(); // 2. Get current user
 
   useEffect(() => {
     if (scriptLoaded.current) return;
+
+    // Capture the email immediately to ensure it's available inside the closure
+    const userEmail = user?.email || '';
 
     const script = document.createElement('script');
     script.type = 'text/javascript';
@@ -42,11 +47,11 @@ export function VoiceflowChat({ onChatComplete }: VoiceflowChatProps) {
                   const formContainer = document.createElement('div');
                   formContainer.style.cssText = "width: 100%; padding: 15px; background: #1a1a1a; border-radius: 10px; border: 1px solid #333;";
                 
+                  // 3. Removed the Email <input> from the HTML below
                   formContainer.innerHTML = `
                     <div class="med-form" style="display: flex; flex-direction: column; gap: 10px;">
                       <h3 style="color: #4dabf7; margin-bottom: 5px;">Patient Intake</h3>
                       <input type="text" id="n" placeholder="Name" required style="padding: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 5px;">
-                      <input type="email" id="e" placeholder="Email" required style="padding: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 5px;">
                       <input type="tel" id="p" placeholder="Phone Number" required style="padding: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 5px;">
                       <textarea id="s" placeholder="Symptoms" style="padding: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 5px; min-height: 60px;"></textarea>
                       <button id="sub" style="padding: 12px; background: #007bff; color: white; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; margin-top: 5px;">Submit Information</button>
@@ -55,19 +60,17 @@ export function VoiceflowChat({ onChatComplete }: VoiceflowChatProps) {
                 
                   formContainer.querySelector('#sub')?.addEventListener('click', async () => {
                     const nameInput = formContainer.querySelector('#n') as HTMLInputElement;
-                    const emailInput = formContainer.querySelector('#e') as HTMLInputElement;
                     const phoneInput = formContainer.querySelector('#p') as HTMLInputElement;
                     const symptomsInput = formContainer.querySelector('#s') as HTMLTextAreaElement;
                     
-                    if (!nameInput.value || !emailInput.value) return;
+                    if (!nameInput.value) return;
                     
-                    // PASS DATA TO VOICEFLOW
-                    // Voiceflow API Step will insert this into Supabase
+                    // 4. Inject 'userEmail' directly into the payload
                     window.voiceflow?.chat.interact({
                       type: 'correct',
                       payload: { 
                         name: nameInput.value.trim(),
-                        email: emailInput.value.trim().toLowerCase(),
+                        email: userEmail, // <--- Auto-filled from AuthContext
                         phone_number: phoneInput.value.trim(),
                         symptoms: symptomsInput.value.trim()
                       }
@@ -95,7 +98,7 @@ export function VoiceflowChat({ onChatComplete }: VoiceflowChatProps) {
     return () => {
       if (script.parentNode) script.parentNode.removeChild(script);
     };
-  }, [onChatComplete]);
+  }, [onChatComplete, user]); // Added user dependency to ensure we have the latest auth state
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">

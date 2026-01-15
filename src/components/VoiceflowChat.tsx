@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { MessageSquare } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext'; // 1. Import Auth Context
 
 interface VoiceflowChatProps {
   onChatComplete: () => void;
@@ -14,12 +14,12 @@ declare global {
 
 export function VoiceflowChat({ onChatComplete }: VoiceflowChatProps) {
   const scriptLoaded = useRef(false);
-  const { user } = useAuth(); // Get logged-in user
+  const { user } = useAuth(); // 2. Get the logged-in user
 
   useEffect(() => {
     if (scriptLoaded.current) return;
 
-    // Capture email for the closure
+    // Capture the email immediately so it's available inside the extension closure
     const userEmail = user?.email || '';
 
     const script = document.createElement('script');
@@ -47,20 +47,23 @@ export function VoiceflowChat({ onChatComplete }: VoiceflowChatProps) {
                   const formContainer = document.createElement('div');
                   formContainer.style.cssText = "width: 100%; padding: 15px; background: #1a1a1a; border-radius: 10px; border: 1px solid #333;";
                 
-                  // Added File Input field below
+                  // 3. REMOVED Email Input | ADDED File Input
                   formContainer.innerHTML = `
                     <div class="med-form" style="display: flex; flex-direction: column; gap: 10px;">
                       <h3 style="color: #4dabf7; margin-bottom: 5px;">Patient Intake</h3>
+                      
                       <input type="text" id="n" placeholder="Name" required style="padding: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 5px;">
+                      
                       <input type="tel" id="p" placeholder="Phone Number" required style="padding: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 5px;">
+                      
                       <textarea id="s" placeholder="Symptoms" style="padding: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 5px; min-height: 60px;"></textarea>
                       
-                      <div style="display: flex; flex-direction: column; gap: 5px;">
+                      <div style="margin-top: 5px;">
                         <label style="color: #888; font-size: 12px; margin-left: 2px;">Medical Report (Optional)</label>
-                        <input type="file" id="f" style="padding: 10px; background: #222; color: #888; border: 1px solid #444; border-radius: 5px; font-size: 12px;">
+                        <input type="file" id="f" style="width: 100%; padding: 10px; background: #222; color: #aaa; border: 1px solid #444; border-radius: 5px; font-size: 12px;">
                       </div>
 
-                      <button id="sub" style="padding: 12px; background: #007bff; color: white; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; margin-top: 5px;">Submit Information</button>
+                      <button id="sub" style="padding: 12px; background: #007bff; color: white; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;">Submit Information</button>
                     </div>
                   `;
                 
@@ -68,32 +71,31 @@ export function VoiceflowChat({ onChatComplete }: VoiceflowChatProps) {
                     const nameInput = formContainer.querySelector('#n') as HTMLInputElement;
                     const phoneInput = formContainer.querySelector('#p') as HTMLInputElement;
                     const symptomsInput = formContainer.querySelector('#s') as HTMLTextAreaElement;
-                    const fileInput = formContainer.querySelector('#f') as HTMLInputElement; // Select file input
+                    const fileInput = formContainer.querySelector('#f') as HTMLInputElement;
                     
                     if (!nameInput.value) return;
 
-                    // --- NEW: Convert File to Base64 ---
-                    let fileBase64 = null;
+                    // 4. Handle File to Base64 Conversion
+                    let reportFileBase64 = null;
                     if (fileInput.files && fileInput.files[0]) {
                       const file = fileInput.files[0];
-                      // We wrap FileReader in a Promise to await it
-                      fileBase64 = await new Promise((resolve, reject) => {
+                      reportFileBase64 = await new Promise((resolve, reject) => {
                         const reader = new FileReader();
-                        reader.readAsDataURL(file);
-                        reader.onload = () => resolve(reader.result); // This is the Base64 string
+                        reader.readAsDataURL(file); // Converts to Data URI (Base64)
+                        reader.onload = () => resolve(reader.result);
                         reader.onerror = error => reject(error);
                       });
                     }
-                    // -----------------------------------
-                    
+
+                    // 5. Send Payload to Voiceflow
                     window.voiceflow?.chat.interact({
                       type: 'correct',
                       payload: { 
                         name: nameInput.value.trim(),
-                        email: userEmail,
+                        email: userEmail, // Injected from AuthContext
                         phone_number: phoneInput.value.trim(),
                         symptoms: symptomsInput.value.trim(),
-                        reportFile: fileBase64 // Sending Base64 string to Voiceflow
+                        reportFile: reportFileBase64 // Sent as 'reportFile' to match your Voiceflow variable
                       }
                     });
                     
@@ -119,7 +121,7 @@ export function VoiceflowChat({ onChatComplete }: VoiceflowChatProps) {
     return () => {
       if (script.parentNode) script.parentNode.removeChild(script);
     };
-  }, [onChatComplete, user]);
+  }, [onChatComplete, user]); // Added user dependency
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
